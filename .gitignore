@@ -1,0 +1,8 @@
+# Secrets
+*.pem
+*.key
+.env
+.env.*
+
+# OS
+.DS_Store
