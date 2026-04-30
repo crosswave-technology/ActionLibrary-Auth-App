@@ -1,4 +1,4 @@
-name: "Pre-Check: Require Version Label"
+name: Require Version Label
 permissions:
   pull-requests: write
   issues: write
@@ -7,7 +7,6 @@ on:
   pull_request:
     types:
       - opened
-      - synchronize
       - labeled
       - unlabeled
 
@@ -62,7 +61,7 @@ jobs:
               existing = comments.find(comment => (comment.body || "").includes(COMMENT_TAG)) || null;
             }
 
-            const upsertComment = async (body) => {
+            const upsertComment = async (body, { allowCreate = true } = {}) => {
               if (isFork) {
                 core.info("Skipping PR comment on forked PR.");
                 return false;
@@ -75,15 +74,18 @@ jobs:
                     comment_id: existing.id,
                     body,
                   });
-                } else {
+                  return true;
+                }
+                if (allowCreate) {
                   await github.rest.issues.createComment({
                     owner,
                     repo,
                     issue_number,
                     body,
                   });
+                  return true;
                 }
-                return true;
+                return false;
               } catch (error) {
                 core.warning(`Unable to post PR comment: ${error.message}`);
                 return false;
@@ -142,7 +144,7 @@ jobs:
               "",
               ":label: **Required**: keep exactly one label: **Patch**, **Minor**, or **Major**.",
               "",
-              `**Currently found**: ${found.join(", ")}`,
+              `**Currently found**: ${found.join(", ") || "(none)"}`,
               "",
               "Remove the extra label(s) so the promotion is unambiguous.",
             ].join("\n");
@@ -167,12 +169,14 @@ jobs:
 
             if (matches.length === 0) {
               if (isDocOnly) {
-                await upsertComment(buildDocOnlyResolvedMessage());
+                if (existing) {
+                  await upsertComment(buildDocOnlyResolvedMessage(), { allowCreate: false });
+                }
                 await writeSummary("Version label not required (automated check)", [
-                  "Doc-only changes detected (`*.md` only) or changes limited to `.github/*` or `VERSION`.",
-                  "",
-                  "No version label is required for this PR.",
-                ]);
+                "Doc-only changes detected (`*.md` only) or changes limited to `.github/*` or `VERSION`.",
+                "",
+                "No version label is required for this PR.",
+              ]);
                 core.info("Doc-only changes detected; skipping version label requirement.");
                 return;
               }
@@ -203,7 +207,7 @@ jobs:
               await writeSummary("Multiple version labels detected (automated check)", [
                 "Please keep exactly one of: **Patch**, **Minor**, **Major**.",
                 "",
-                `Currently found: ${matches.join(", ")}`,
+                `Currently found: ${matches.join(", ") || "(none)"}`,
                 "",
                 "Remove the extra label(s) so the promotion is unambiguous.",
               ]);
@@ -211,7 +215,9 @@ jobs:
                 `Multiple version labels found (${matches.join(", ")}). Please keep exactly one.`
               );
             } else {
-              await upsertComment(buildResolvedMessage(matches[0]));
+              if (existing) {
+                await upsertComment(buildResolvedMessage(matches[0]), { allowCreate: false });
+              }
               await writeSummary("Version label set (automated check)", [
                 `Thanks. Detected label: **${matches[0]}**.`,
                 "",
