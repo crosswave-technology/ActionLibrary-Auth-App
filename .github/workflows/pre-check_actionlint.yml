@@ -1,4 +1,4 @@
-name: "Pre-Check: Actionlint"
+name: Actionlint Pre-Check
 permissions:
   contents: read
   pull-requests: write
