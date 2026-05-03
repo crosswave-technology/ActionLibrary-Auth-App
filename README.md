@@ -1,7 +1,8 @@
 # ActionLibrary-Auth-App
 
 Composite action for GitHub App authentication. Generates a short-lived installation
-token using a manually crafted JWT, without depending on third-party actions.
+token by delegating to `actions/create-github-app-token@v1` (SHA-pinned) -- no OpenSSL
+dependency, GitHub-maintained JWT generation.
 
 ## Usage
 
@@ -20,7 +21,7 @@ token using a manually crafted JWT, without depending on third-party actions.
     token: ${{ steps.auth.outputs.token }}
 ```
 
-After this step, `GH_TOKEN` and `GITHUB_TOKEN` are also set in the workflow environment
+After this step, `GH_TOKEN` and `GITHUB_TOKEN` are set in the workflow environment
 for `gh` CLI and API calls.
 
 ## Inputs
@@ -28,17 +29,17 @@ for `gh` CLI and API calls.
 | Name | Required | Description |
 |------|----------|-------------|
 | `app-id` | Yes | GitHub App ID |
-| `app-installation-id` | Yes | App installation ID for the target org |
+| `app-installation-id` | No | Accepted for interface compatibility -- not currently wired |
 | `app-private-key` | Yes | RSA private key (PEM format) |
 
 ## Outputs
 
 | Name | Description |
 |------|-------------|
-| `token` | Short-lived installation token (~10 min validity) |
+| `token` | Short-lived installation token (~1 hour validity) |
 
 ## Security
 
 - Token is automatically masked (`::add-mask::`) before being written to outputs
-- PEM key written to a temp file with `trap` cleanup on exit
-- No third-party action dependencies — pure OpenSSL + curl
+- JWT generation delegated to `actions/create-github-app-token` (pinned to commit SHA)
+- `GH_TOKEN` and `GITHUB_TOKEN` set via GITHUB_ENV for downstream steps
